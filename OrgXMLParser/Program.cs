@@ -29,6 +29,9 @@ namespace OrgXMLParser
                     string choice = Console.ReadLine();
                     switch (choice)
                     {
+                        case "exit":
+                            exit = true;
+                            break;
 
                         default:
                             Console.WriteLine("Command not recognized.\n");
@@ -102,12 +105,8 @@ namespace OrgXMLParser
                     }
                 }
             }
-            var j = 0;
-            foreach (Component x in ls)
-            {
-                j++;
-                Console.WriteLine($"List item #{j} is {x.ComponentName} and has {x.DirectChildren?.Count()} children.");
-            }
+            DataBreaker brkr = new DataBreaker(ls);
+            brkr.BreakThisShit("District I");
         }
     }
 
