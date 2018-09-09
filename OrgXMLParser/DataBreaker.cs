@@ -18,37 +18,58 @@ namespace OrgXMLParser
         }
         
 
-        public int BreakThisShit(string pName)
+        public string BreakThisShit(string pName, bool pMakeNestedList = true)
         {
             Component c = MasterList.Find(x => x.ComponentName == pName);
+            XElement result = new XElement("Master", "PGPDOrg");
             if (c != null)
             {
-                XElement result = ParseThisDirtyWhore(c, new XElement("Master", "PGPDOrg"));
-                result.Save(@"F:\Projects\BlueDeck\Result.xml");
-                
-                
+                switch (pMakeNestedList) {                    
+                    case true:
+                        result = ParseComponentToNestedList(c, new XElement("Master", "PGPDOrg"));
+                        result.Save(@"E:\Projects\BlueDeck\Result.xml");
+                        break;
+                    case false:
+                        result = ParseComponentToFlatList(c, new XElement("Master", "PGPDOrg"));
+                        result.Save(@"E:\Projects\BlueDeck\Result.xml");
+                        break;
+                }                
             }
             else
             {
-                return 0;
+                return $@"Unable to find a component named {pName} in the Component List." ;
             }
-
-            return 1;
-
+            return @"List was successfully generated at E:\Projects\BlueDeck\Result.xml";
         }
 
-        public XElement ParseThisDirtyWhore(Component pComponent, XElement pElement)
+        public XElement ParseComponentToNestedList(Component pComponent, XElement pElement)
         {
-            XElement x = new XElement("Component", pComponent.ComponentName);
+            XElement x = new XElement(
+                "Component", pComponent.ComponentName,
+                new XAttribute("componentID", pComponent.ComponentID),
+                new XAttribute("parentComponentID", pComponent.ParentComponentID)
+                );
             pElement.Add(x);
             foreach(Component chld in pComponent.DirectChildren)
             {
-                ParseThisDirtyWhore(chld, x);
+                ParseComponentToNestedList(chld, x);
             }
             return x;
 
         }
 
+        public XElement ParseComponentToFlatList(Component pComponent, XElement pElement) {
+            XElement x = new XElement(
+            "Component", pComponent.ComponentName,
+            new XAttribute("componentID", pComponent.ComponentID),
+            new XAttribute("parentComponentID", pComponent.ParentComponentID)
+            );
+            pElement.Add(x);
+            foreach (Component chld in pComponent.DirectChildren) {
+                ParseComponentToFlatList(chld, pElement);                
+            }
+            return pElement;
+        }
 
     }
 }

@@ -12,101 +12,123 @@ namespace OrgXMLParser
 {
     class Program
     {
+        private static List<Component> Components;
+
         static void Main(string[] args)
         {
-
-        Console.WriteLine(@"Attempting to parse Query from F:\Projects\BlueDeck\OrgChart1.accdb" );
-            if (File.Exists(@"F:\Projects\BlueDeck\OrgChart1.accdb"))
-            {
-                Console.WriteLine("File found!");
-                // Obv, change this to any function that can generate a "flat" List<Component>
-                ProcessAccessData();
-                bool exit = false;
-                do
-                {
-                    Console.WriteLine("Valid Commands:\n\t[unitname] will attempt to parse a unit tree with the name provided" +
-                        "\n\t[exit] will exit the program");
-                    string choice = Console.ReadLine();
-                    switch (choice)
-                    {
-                        case "exit":
-                            exit = true;
+            string input = "init";
+            
+            while (input != "exit") {
+            Console.WriteLine("Please provide the filepath of the Org Chart Access DB." +
+            "\n Press [enter] to use the default at: " + @"'E:\Projects\BlueDeck\OrgChart1.accdb'" +
+            "\n Type 'exit' to exit the program.");
+                input = Console.ReadLine();
+                try {
+                    switch (input) {
+                        case "":
+                            if (!File.Exists(@"E:\Projects\BlueDeck\OrgChart1.accdb")) { throw new FileNotFoundException(); }
+                            if (ProcessOleDbConnection(@"E:\Projects\BlueDeck\OrgChart1.accdb")) {
+                                ProcessListMenu();
+                            }
+                            else {
+                                Console.WriteLine("Could not connect to data source.");
+                                break;
+                            }                            
                             break;
-
                         default:
-                            Console.WriteLine("Command not recognized.\n");
+                            if (!File.Exists(input)) { throw new FileNotFoundException(); }
+                            if (ProcessOleDbConnection(input)) {
+                                ProcessListMenu();
+                            }
+                            else {
+                                Console.WriteLine("Could not connect to data source.");
+                                break;
+                            }
                             break;
-
                     }
-                } while (!exit);
-                
+                }
+                catch (FileNotFoundException e) {
+                    Console.WriteLine(@"File {input} could not be found. Confirm that the file path is correct.");
+                }
             }
-            else
-            {
-                Console.WriteLine("File could not be found. Confirm the data source exists at the filepath and try again.");                
-            }
-
         }
-        // This creates a List<Component> flat list of components by connecting to Access
-        static void ProcessAccessData()
-        {
-            OleDbConnection conn = new
-                OleDbConnection();
-            conn.ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;" +
-                @"Data source= F:\Projects\BlueDeck\OrgChart1.accdb";
-            try
-            {
-                List<Component> rawComponentList = new List<Component>();
+
+        static void ProcessListMenu() {
+            string[] response = new string[] { "init" };
+
+            while (response[0].Trim() != "exit") {
+                Console.WriteLine("===COMPONENT PARSING OPTIONS===." +
+                    "\nEnter '[ComponentName] -nest' to generate a nested XML tree" +
+                    "\nEnter '[ComponentName] -flat' to generate a flat XML file." +
+                    "\nType 'exit' to exit.");
+                response = Console.ReadLine().Split('-');
+                if (response.Count() > 1) {
+                    switch (response[1]) {
+                        case "flat":
+                            Console.WriteLine(new DataBreaker(Components).BreakThisShit(response[0].Trim(), false));
+                            break;
+                        case "nest":
+                            Console.WriteLine(new DataBreaker(Components).BreakThisShit(response[0].Trim()));
+                            break;
+                        default:
+                            Console.WriteLine($@"-{response[1]} is not a recognized command.");
+                            break;
+                    }
+                }
+                else {
+                    Console.WriteLine("You must provide a Component Name and a parsing option.");
+                }
+            }
+        }
+
+        static bool ProcessOleDbConnection(string pFilePath = @"E:\Projects\BlueDeck\OrgChart1.accdb") {
+            OleDbConnection conn = new OleDbConnection {
+                ConnectionString = $@"Provider=Microsoft.ACE.OLEDB.12.0;Data source={pFilePath}"
+            };
+
+            try {
+                Components = new List<Component>();
                 conn.Open();
                 OleDbDataReader reader = null;
                 OleDbCommand cmd = new OleDbCommand("SELECT * FROM District_I_Map", conn);
                 reader = cmd.ExecuteReader();
                 while (reader.Read()) {
-                    Component n = new Component();
-                    n.ComponentID = Convert.ToInt32(reader[0]);
-                    n.ComponentName = reader[2].ToString();
-                    n.ParentComponentID = Convert.ToInt32(reader[1]);
-                    n.ParentComponentName = reader[3].ToString();
+                    Component n = new Component {
+                        ComponentID = Convert.ToInt32(reader[0]),
+                        ComponentName = reader[2].ToString(),
+                        ParentComponentID = Convert.ToInt32(reader[1]),
+                        ParentComponentName = reader[3].ToString()
+                    };
                     Console.WriteLine(string.Format($"\nAdding {n.ComponentName} to Component List..."));
-                    rawComponentList.Add(n);
+                    Components.Add(n);
                 }
-                // All Components should be added to the collection at this point
-                // Call the function to parse and nest components from the flat list
-                NestFlatComponentList(rawComponentList);
-
+                NestFlatComponentList();
+                return true;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Failed to connect to data source");
+            catch (Exception ex) {
+                return false;
             }
-            finally
-            {
+            finally {
                 conn.Close();
             }
         }
 
-        static void NestFlatComponentList(List<Component> ls)
-        {
+        static void NestFlatComponentList() {
             int i = 0;
-            foreach (Component current in ls)
-            {
+            foreach (Component current in Components) {
                 i++;
-                Console.WriteLine($"Processing component number {i}, current master list count is: " + ls.Count);
+                Console.WriteLine($"Processing component number {i}, current master list count is: " + Components.Count);
 
 
                 // Gather My Children
                 //List<Component> childList = new List<Component>();
-                foreach (Component child in ls)
-                {
-                    if (child.ParentComponentID == current.ComponentID)
-                    {
+                foreach (Component child in Components) {
+                    if (child.ParentComponentID == current.ComponentID) {
                         //childList.Add(child);
                         current.DirectChildren.Add(child);
                     }
                 }
             }
-            DataBreaker brkr = new DataBreaker(ls);
-            brkr.BreakThisShit("District I");
         }
     }
 
