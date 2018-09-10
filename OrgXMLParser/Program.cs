@@ -13,6 +13,8 @@ namespace OrgXMLParser
     class Program
     {
         private static List<Component> Components;
+        private const string defaultFilePath = @"F:\Projects\BlueDeck\OrgChart1.accdb";
+        
 
         static void Main(string[] args)
         {
@@ -20,14 +22,14 @@ namespace OrgXMLParser
             
             while (input != "exit") {
             Console.WriteLine("Please provide the filepath of the Org Chart Access DB." +
-            "\n Press [enter] to use the default at: " + @"'E:\Projects\BlueDeck\OrgChart1.accdb'" +
+            $"\n Press [enter] to use the default at: {defaultFilePath}" + 
             "\n Type 'exit' to exit the program.");
                 input = Console.ReadLine();
                 try {
                     switch (input) {
                         case "":
-                            if (!File.Exists(@"E:\Projects\BlueDeck\OrgChart1.accdb")) { throw new FileNotFoundException(); }
-                            if (ProcessOleDbConnection(@"E:\Projects\BlueDeck\OrgChart1.accdb")) {
+                            if (!File.Exists(defaultFilePath)) { throw new FileNotFoundException(); }
+                            if (ProcessOleDbConnection(defaultFilePath)) {
                                 ProcessListMenu();
                             }
                             else {
@@ -48,7 +50,7 @@ namespace OrgXMLParser
                     }
                 }
                 catch (FileNotFoundException e) {
-                    Console.WriteLine(@"File {input} could not be found. Confirm that the file path is correct.");
+                    Console.WriteLine($@"File {input} could not be found. Confirm that the file path is correct.");
                 }
             }
         }
@@ -58,17 +60,21 @@ namespace OrgXMLParser
 
             while (response[0].Trim() != "exit") {
                 Console.WriteLine("===COMPONENT PARSING OPTIONS===." +
-                    "\nEnter '[ComponentName] -nest' to generate a nested XML tree" +
-                    "\nEnter '[ComponentName] -flat' to generate a flat XML file." +
+                    "\nEnter '[ComponentName] -nestXML' to generate a nested XML tree" +
+                    "\nEnter '[ComponentName] -flatXML' to generate a flat XML file." +
+                    "\nEnter '[ComponentName] -flatJSON to generate a flat JSON file." +
                     "\nType 'exit' to exit.");
                 response = Console.ReadLine().Split('-');
-                if (response.Count() > 1) {
+                if (response.Count() == 2) {
                     switch (response[1]) {
-                        case "flat":
+                        case "flatXML":
                             Console.WriteLine(new DataBreaker(Components).BreakThisShit(response[0].Trim(), false));
                             break;
-                        case "nest":
+                        case "nestXML":
                             Console.WriteLine(new DataBreaker(Components).BreakThisShit(response[0].Trim()));
+                            break;
+                        case "flatJSON":
+                            Console.WriteLine(new DataBreaker(Components).BreakThisShit(response[0].Trim(), false, true));
                             break;
                         default:
                             Console.WriteLine($@"-{response[1]} is not a recognized command.");
@@ -79,11 +85,12 @@ namespace OrgXMLParser
                     Console.WriteLine("You must provide a Component Name and a parsing option.");
                 }
             }
+            return;
         }
 
-        static bool ProcessOleDbConnection(string pFilePath = @"E:\Projects\BlueDeck\OrgChart1.accdb") {
+        static bool ProcessOleDbConnection(string pFilePath) {
             OleDbConnection conn = new OleDbConnection {
-                ConnectionString = $@"Provider=Microsoft.ACE.OLEDB.12.0;Data source={pFilePath}"
+                ConnectionString = $"Provider=Microsoft.ACE.OLEDB.12.0;Data source={pFilePath}"
             };
 
             try {
